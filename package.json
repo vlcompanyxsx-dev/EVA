@@ -1,0 +1,14 @@
+{
+  "name": "eva-vlcompany",
+  "version": "1.0.0",
+  "description": "Assistente virtual profissional para agência de marketing (VL Company)",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "express": "^4.18.2"
+  }
+}
