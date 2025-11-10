@@ -13,7 +13,7 @@ Assistente virtual profissional para WhatsApp, criada com Node.js, OpenAI e Evol
 4. Crie uma instância no painel da [Evolution API](https://evolution-api.com).
 5. Escaneie o QR Code com o WhatsApp desejado.
 6. No campo **Webhook**, cole:
-https://seu-app-do-render.onrender.com/webhook
+7. (https://eva-1-3x0t.onrender.com)
 
 yaml
 Copiar código
