@@ -1,0 +1,96 @@
+import express from "express";
+import axios from "axios";
+import fs from "fs";
+
+const app = express();
+app.use(express.json());
+
+// ========== CONFIGURAÇÕES ==========
+const OPENAI_API_KEY = "SUA_API_KEY_AQUI"; // <- Cole aqui sua chave da OpenAI
+const EVOLUTION_URL = "https://evolution-api.com/instance/SEU_ID"; // <- Cole aqui a URL da sua instância Evolution
+const EVOLUTION_TOKEN = "SEU_TOKEN_AQUI"; // <- Cole aqui o token da Evolution API
+
+// Caminho da memória de conversas
+const MEMORY_FILE = "./memory.json";
+
+// Função para carregar memória
+function loadMemory() {
+  if (fs.existsSync(MEMORY_FILE)) {
+    return JSON.parse(fs.readFileSync(MEMORY_FILE, "utf8"));
+  } else {
+    return {};
+  }
+}
+
+// Função para salvar memória
+function saveMemory(memory) {
+  fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
+}
+
+let memory = loadMemory();
+
+// ========== ROTAS ==========
+app.post("/webhook", async (req, res) => {
+  const msg = req.body;
+  const text = msg?.message?.conversation || msg?.message?.extendedTextMessage?.text;
+
+  if (!text) return res.sendStatus(200);
+
+  const userNumber = msg.key.remoteJid;
+  console.log("📩 Mensagem recebida de", userNumber, ":", text);
+
+  // Recuperar histórico do usuário
+  const userHistory = memory[userNumber] || [];
+
+  // Adicionar nova mensagem
+  userHistory.push({ role: "user", content: text });
+
+  try {
+    // Envia a conversa completa pro modelo da OpenAI
+    const completion = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Você é a Eva, consultora virtual profissional da VL Company, uma agência de marketing digital. " +
+              "Você fala de maneira educada, objetiva e com foco em negócios. " +
+              "Responda sempre com clareza e ofereça ajuda sobre criação de sites, tráfego pago, gestão de redes sociais, branding e posicionamento digital.",
+          },
+          ...userHistory,
+        ],
+      },
+      {
+        headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+      }
+    );
+
+    const resposta = completion.data.choices[0].message.content;
+
+    // Adiciona resposta no histórico
+    userHistory.push({ role: "assistant", content: resposta });
+    memory[userNumber] = userHistory.slice(-20); // Limita histórico a 20 mensagens
+    saveMemory(memory);
+
+    // Envia resposta para o WhatsApp
+    await axios.post(
+      `${EVOLUTION_URL}/sendMessage`,
+      {
+        number: userNumber,
+        message: resposta,
+      },
+      { headers: { apikey: EVOLUTION_TOKEN } }
+    );
+
+    console.log("✅ Resposta enviada:", resposta);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("❌ Erro:", err.message);
+    res.sendStatus(500);
+  }
+});
+
+// ========== INICIAR SERVIDOR ==========
+app.listen(3000, () => console.log("🚀 Eva da VL Company no ar!"));
